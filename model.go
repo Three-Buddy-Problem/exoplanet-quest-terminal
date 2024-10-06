@@ -7,17 +7,23 @@ import (
 )
 
 type Model struct {
-	state   state
-	lg      *lipgloss.Renderer
-	styles  *Styles
-	form    *huh.Form
-	width   int
-	answer1 string
-	answer2 string
-	answer3 string
+	state        state
+	lg           *lipgloss.Renderer
+	styles       *Styles
+	form         *huh.Form
+	width        int
+	color        string
+	formType     string
+	flux         string
+	inOrbit      string
+	isExo        string
+	randomID     int
+	generatedURL string
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
+
+	m.generatedURL = m.GenerateUrl()
 	return m.form.Init()
 }
 
@@ -28,58 +34,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "ctrl+c", "q":
-			return m, tea.Quit
+			return &m, tea.Quit
 		}
 	}
 
 	var cmds []tea.Cmd
 
-	// Process the form
-	form, cmd := m.form.Update(msg)
-	if f, ok := form.(*huh.Form); ok {
-		m.form = f
-		cmds = append(cmds, cmd)
+	// Process the main form
+	if m.state == stateFormPage {
+		form, cmd := m.form.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.form = f
+			cmds = append(cmds, cmd)
+		}
+
+		m.color = m.form.GetString("color")
+		m.formType = m.form.GetString("formType")
+		m.flux = m.form.GetString("flux")
+		m.inOrbit = m.form.GetString("inOrbit")
+		m.isExo = m.form.GetString("isExoplanet")
+
 	}
 
-	if m.form.State == huh.StateCompleted {
-		// Switch to the next page after form completion
-		m.state = stateSummaryPage
+	// If the form is completed, validate answers
+	if m.form.State == huh.StateCompleted && m.state == stateFormPage {
+		if m.ValidateAnswers() {
+			m.state = stateCorrectAnswer
+		} else {
+			m.state = stateWrongAnswer
+		}
 	}
 
-	return m, tea.Batch(cmds...)
-}
-
-func (m Model) getRole() (string, string) {
-	level := m.form.GetString("level")
-	switch m.form.GetString("class") {
-	case "Warrior":
-		switch level {
-		case "1":
-			return "Tank Intern", "Assists with tank-related activities. Paid position."
-		case "9999":
-			return "Tank Manager", "Manages tanks and tank-related activities."
-		default:
-			return "Tank", "General tank. Does damage, takes damage. Responsible for tanking."
-		}
-	case "Mage":
-		switch level {
-		case "1":
-			return "DPS Associate", "Finds DPS deals and passes them on to DPS Manager."
-		case "9999":
-			return "DPS Operating Officer", "Oversees all DPS activities."
-		default:
-			return "DPS", "Does damage and ideally does not take damage. Logs hours in JIRA."
-		}
-	case "Rogue":
-		switch level {
-		case "1":
-			return "Stealth Junior Designer", "Designs rogue-like activities. Reports to Stealth Lead."
-		case "9999":
-			return "Stealth Lead", "Lead designer for all things stealth. Some travel required."
-		default:
-			return "Sneaky Person", "Sneaks around and does sneaky things. Reports to Stealth Lead."
-		}
-	default:
-		return "", ""
-	}
+	return &m, tea.Batch(cmds...)
 }

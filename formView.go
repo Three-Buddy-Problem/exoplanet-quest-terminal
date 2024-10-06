@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mdp/qrterminal/v3"
 	"strings"
@@ -18,7 +16,7 @@ func (m Model) viewFormPage() string {
 	// Generate the QR code string
 	qrBuilder := &strings.Builder{}
 	qrterminal.GenerateWithConfig(
-		"https://github.com/mdp/qrterminal", // You can use your own content here
+		m.generatedURL, // You can use your own content here
 		qrterminal.Config{
 			Level:     qrterminal.L, // Low error correction for smaller QR code
 			Writer:    qrBuilder,    // Write QR code output to strings.Builder
@@ -32,29 +30,39 @@ func (m Model) viewFormPage() string {
 	qrStyled := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder(), true).           // Add double-line border around the QR code
 		BorderForeground(lipgloss.AdaptiveColor(indigo)). // Add some space below the QR code
-		Render(s.StatusHeader.Render("Qr code to the game") + "\n \n" + qrCodeString)
+		Render(s.StatusHeader.Render("Qr code to the game") + "\n \n" + qrCodeString + "\n \n" + m.generatedURL)
 
 	// Status (right side)
 	var status string
 	{
 
 		var (
-			answer1 string
-			answer2 string
-			answer3 string
+			color    string
+			formType string
+			flux     string
+			inOrbit  string
+			isExo    string
 		)
 
-		if m.form.GetString("answer1") != "" {
-			answer1 = m.form.GetString("answer1")
-			answer1 = "\n\n" + s.StatusHeader.Render("Answer 1") + "\n" + answer1
+		if m.form.GetString("color") != "" {
+			color = m.form.GetString("color")
+			color = "\n\n" + s.StatusHeader.Render("Planet Color") + "\n" + color
 		}
-		if m.form.GetString("answer2") != "" {
-			answer2 = m.form.GetString("answer2")
-			answer2 = "\n\n" + s.StatusHeader.Render("Answer 2") + "\n" + answer2
+		if m.form.GetString("formType") != "" {
+			formType = m.form.GetString("formType")
+			formType = "\n\n" + s.StatusHeader.Render("Planet Form") + "\n" + formType
 		}
-		if m.form.GetString("answer3") != "" {
-			answer3 = m.form.GetString("answer3")
-			answer3 = "\n\n" + s.StatusHeader.Render("Answer 3") + "\n" + answer3
+		if m.form.GetString("flux") != "" {
+			flux = m.form.GetString("flux")
+			flux = "\n\n" + s.StatusHeader.Render("Flux") + "\n" + flux
+		}
+		if m.form.GetString("inOrbit") != "" {
+			inOrbit = m.form.GetString("inOrbit")
+			inOrbit = "\n\n" + s.StatusHeader.Render("Is in orbit") + "\n" + inOrbit
+		}
+		if m.form.GetString("isExoplanet") != "" {
+			isExo = m.form.GetString("isExoplanet")
+			isExo = "\n\n" + s.StatusHeader.Render("Is exoplanet") + "\n" + isExo
 		}
 
 		const statusWidth = 28
@@ -64,13 +72,15 @@ func (m Model) viewFormPage() string {
 			Width(statusWidth).
 			MarginLeft(statusMarginLeft).
 			Render(s.StatusHeader.Render("Your Answers") +
-				answer1 +
-				answer2 +
-				answer3)
+				color +
+				formType +
+				flux +
+				inOrbit +
+				isExo)
 	}
 
 	errors := m.form.Errors()
-	header := m.appBoundaryView("Charm Employment Application")
+	header := m.appBoundaryView("Exoplanet Game Quiz")
 	if len(errors) > 0 {
 		header = m.appErrorBoundaryView(m.errorView())
 	}
@@ -82,48 +92,4 @@ func (m Model) viewFormPage() string {
 	}
 
 	return s.Base.Render(qrStyled + "\n" + header + "\n" + body + "\n\n" + footer)
-}
-
-func FormField() Model {
-	m := Model{width: maxWidth, state: stateFormPage}
-	m.lg = lipgloss.DefaultRenderer()
-	m.styles = NewStyles(m.lg)
-
-	m.form = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Key("answer1").
-				Title("What’s the paramater1").
-				Prompt("?").
-				Value(&m.answer1),
-
-			huh.NewInput().
-				Key("answer2").
-				Title("What’s for lunch?").
-				Prompt("?").
-				Value(&m.answer2),
-
-			huh.NewInput().
-				Key("answer3").
-				Title("What’s for lunch?").
-				Prompt("?").
-				Value(&m.answer3),
-
-			huh.NewConfirm().
-				Key("done").
-				Title("All done?").
-				Validate(func(v bool) error {
-					if !v {
-						return fmt.Errorf("Welp, finish up then")
-					}
-					return nil
-				}).
-				Affirmative("Yep").
-				Negative("Wait, no"),
-		),
-	).
-		WithWidth(45).
-		WithShowHelp(false).
-		WithShowErrors(false)
-	return m
 }
